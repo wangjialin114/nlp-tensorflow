@@ -1,7 +1,9 @@
 #Python
 *.py
-*.cpkt
+*.ckpt
 *.meta
+.idea
+.ipynb_checkpoints
 data
 MNIST_data
 
