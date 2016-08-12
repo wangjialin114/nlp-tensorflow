@@ -1,0 +1,7 @@
+#Python
+*.py
+*.cpkt
+*.meta
+data
+MNIST_data
+
