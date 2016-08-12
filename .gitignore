@@ -3,7 +3,7 @@
 *.ckpt
 *.meta
 .idea
-.ipynb_checkpoints
+.ipynb_checkpoints/
 data
 MNIST_data
 
