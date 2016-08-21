@@ -2,6 +2,7 @@
 title: Natural Language Process 
 email: wangjialin@hust.edu.cn
 description: "Projects about NLP "
+#baseurl: ""
 baseurl: "https://wangjialin114.github.io/nlp-tensorflow/"
 url: ""
 twitter_username: 
