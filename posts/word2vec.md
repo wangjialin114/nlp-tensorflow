@@ -29,7 +29,16 @@ permalink: /posts/word2vec/
 - 词与词之间的相似性等无法得到表示
 - 简单，鲁棒，简单的模型在大量数据下的表现比复杂模型在少量数据下更佳
 - 很多场景下的任务性能受限于数据量，同时，简单的增加数据量可能不会带来很大的改善
-因此，$$word\  embeddings$$这个更复杂的模型应运而生。并且，确实，它也确实比之前简单的模型表现的更好。这也和机器学习整个的发展极其相似。
+
+因此，$$word\  embeddings$$这个更复杂的模型应运而生。它也确实比之前简单的模型表现的更好。
+
+<div class="fig figleft fighighlight">
+  <img src="/assets/word2vec/word2vec-1.png">
+  <div class="figcaption">
+    nlp的发展和机器学习整个的发展极其相似。
+  </div>
+  <div style="clear:both;"></div>
+</div>
 
 当然，这和硬件的发展是分不开的。
 
@@ -60,18 +69,31 @@ $$ P(w_1,w_2,...,w_n)=\prod_{j=1}^{n}{P(w_j)}$$
 #### 工作原理
 
 ‘The cat jumped over the puddle’,对于这句话，我们将{'the','cat','over','the','puddle'}当作context，用来预测产生词语'jumped'。整个预测过程分为以下几步：
+
 Input：$$x^{(c)}\in R^{|V|*m}$$, context words
+<br>
 Parameters:
+<br>
 m:context size
+<br>
 $$V\in R^{|V|*n}$$:input word matrix
+<br>
 $$U\in R^{|V|*n}$$:output word matrix
+
 Output:
+<br>
 $$\hat{y}$$, central word
+<br>
 1. 生成输入的句子$$x^{(c)}$$,采用的one-hot编码，$$(x^{(c-m)},...,x^{(c-1)},x^{(c+1),...,x^{(c+m)}})$$,$$context size$$ 大小为m。
+<br>
 2. 得到embedded vectors$$(v_{c-m}=V x^{(c-m)}, ... ,v_{c+m}=Vx^{(c+m)})$$
+<br>
 3. 取平均：$$\hat{v}=\frac{v_{c-m}+v_{c-m+1}+...+v_{c+m}}{2m}\in R^{n}$$
+<br>
 4. 得到一个分数vector, $$z=U*\hat{v}\in R^{|V|}$$
+<br>
 5. 将分数转化为概率$$\hat{y}=softmax(z)$$
+
 因此，在知道U和V的时候，我们知道如何预测central word。那么接下来问题就变成了如何获得输入单词矩阵V和输出单词矩阵U了。换言之，
 
 #### 如何训练模型得到V和U
@@ -102,17 +124,29 @@ $$
 skip-gram模型则和CBOW模型相反，是给定central word,预测context words。‘The cat jumped over the puddle’,对于这句话，我们将给定词语'jumped'，想预测产生{'the','cat','over','the','puddle'}当作context。
 
 Input：$$x\in R^{|V|}$$, central word
+<br>
 Parameters:
+<br>
 m:context size
+<br>
 $$V\in R^{|V|*n}$$:input word matrix
+<br>
 $$U\in R^{|V|*n}$$:output word matrix
+
 Output:
+<br>
 $$\hat{y}^{(c)}$$ ,context words
+<br>
 1. 生成输入的词语$$x$$,采用的one-hot编码。
+<br>
 2. 得到embedded vector, $$v_{c}=Vx$$
+<br>
 3. 这里不用像CBOW一样取平均，只用$$\hat{v}=v_{c}$$
+<br>
 4. 产生2m个分数vector, $$u=U*\hat{v}\in R^{|V|}$$,$$(u_{c-m},...,u_{c+m})$$
+<br>
 5. 将分数转化为概率$$\hat{y}=softmax(u)$$,$$(y^{c-m},...,y^{c+m})$$
+
 因此，在知道U和V的时候，我们知道如何预测context word。那么接下来问题就变成了如何获得输入单词矩阵V和输出单词矩阵U了。换言之，
 
 #### 如何训练模型得到V和U
@@ -121,9 +155,18 @@ $$\hat{y}^{(c)}$$ ,context words
 $$H(y,\hat{y})=-\sum_{j=1}^{|V|}{y_{j}log(\hat{y_{j}})}$$
 对于one-hot编码，y中只有正确的那个位置为1,其余的都为0。因此上式变成了：
 $$H(y,\hat{y})=-y_{i}log(\hat{y_{i}})=-log(\hat{y_i})$$
-也就是上面第五步中得到的概率。下面换个标记$$J$$代表我们的最优函数目标。但这里有一个假设，就是假设所有的context。
+也就是上面第五步中得到的概率。下面换个标记$$J$$代表我们的最优函数目标。但这里有一个假设，就是假设所有的context输出是独立的。
+假设一个训练集为 $$ w_{1},w_{2},...,w_{T} $$
 目标函数：最大化以下函数：
-$$\frac{1}{T}$$
+
+$$\frac{1}{T}\sum_{t=1}^{T}\sum_{-c\leq{j}\geq{c},j\neq0}logp(w_{t+j}|w_{t})$$
+
+另外，skip-gram模型中用简单的softmax函数定义$$p(w_{t+j}|w_{t})$$ 
+：
+
+$$p(w_{o}|w_{I})=\frac{exp(v_{w_{o}}^{'T}v_{w_{I}})}{\sum_{w=1}^{W}{exp(v_{w}^{'T}v_{w_{I}})}}$$
+
+因此，综合以上，也就是最小化一下函数：
 
 $$
 \begin{eqnarray*}
@@ -157,6 +200,7 @@ $$
        &=& argmax\sum_{(w,c)\in D}log\frac{1}{1+e^{(-v_{c}^{T}u_{w})}}\sum_{(w,c)\in \hat{D}}log(\frac{1}{1+e^{(v_{c}^{T}u_{w})}}) \\
 \end{eqnarray*}
 $$
+
 上式中的$$\hat{D}$$代表negative corpus。我们可以从vocabulary中随机采样产生这个negative corpus。
 假如我们采样数为K个的话，那么上式变为：
 $$log\sigma(u_{c-m+j}^{T}v_{c})+\sum_{k=1}^{K}log\sigma(-\hat{u_{k}}v_{c})$$
