@@ -1,8 +1,4 @@
 #Python
-*.py
-*.ckpt
 *.meta
 .idea
 .ipynb_checkpoints/
-MNIST_data
-.zip
