@@ -28,7 +28,7 @@ from utils import sequence
 #when debug set max_epochs = 1
 
 
-class ImdbLstm(object):
+class LSTM(object):
     def __init__(self, config):
         self.batch_size = config.batch_size
         self.num_steps = config.num_steps
@@ -36,28 +36,27 @@ class ImdbLstm(object):
         self.vocab_size = config.vocab_size
         self.embed_size = 50
         self.add_placeholders()
-        self.max_epochs = 5
+        self.max_epochs = 12
         self.initial_state_placeholder = tf.placeholder(tf.float32)
+        self.test_seq_len = config.test_seq_len
+        self.train_seq_len = config.train_seq_len
         inputs = self.add_embed_layer()
 
         ##initial state
         cell = self.add_rnn_model()
         self.initial_state = cell.zero_state(self.batch_size, tf.float32)
-        #mbsz = tf.shape(self.input_placeholder)[0]
 
-        mbsz = self.batch_size
-        max_seq_len = self.num_steps
-        self.sequence_length = tf.concat(0, [tf.fill([mbsz//2], max_seq_len),tf.fill([mbsz//2], max_seq_len-100)])
         self.sequence_length_placeholder = tf.placeholder(tf.int32)
 
         # state is the final state
-        outputs, state = tf.nn.dynamic_rnn(cell, inputs, initial_state=self.initial_state, sequence_length=self.sequence_length_placeholder)
+        outputs, state = tf.nn.rnn(cell, inputs, initial_state=self.initial_state,
+                                   sequence_length=self.sequence_length_placeholder)
         self.final_state = state[-1]
         # add projection layers
         W = tf.get_variable('Weights', shape=[self.hidden_size, 1])
         b = tf.get_variable('Bias', shape=[1])
 
-        y_pred = tf.squeeze(tf.matmul(tf.squeeze(outputs[:,-1,:]), W)) + b
+        y_pred = tf.squeeze(tf.matmul(outputs[-1], W)) + b
 
         y_pred_sigmoid = tf.sigmoid(y_pred)
         self.loss = tf.nn.sigmoid_cross_entropy_with_logits(y_pred, self.label_placeholder)
@@ -87,13 +86,13 @@ class ImdbLstm(object):
         with tf.device('/cpu:0'), tf.variable_scope('embed'):
             embed = tf.get_variable(name="Embedding", shape=[self.vocab_size, self.embed_size])
             inputs = tf.nn.embedding_lookup(embed, self.input_placeholder)
-            #inputs = [tf.squeeze(input, squeeze_dims=[1]) for input in tf.split(1, self.num_steps, inputs)]
-            inputs = tf.transpose(inputs, perm=[0,2,1])
+            inputs = [tf.squeeze(input, squeeze_dims=[1]) for input in tf.split(1, self.num_steps, inputs)]
+            #inputs = tf.transpose(inputs, perm=[0,2,1])
         return inputs
 
     ## add training op
     def add_train_op(self):
-        train_op = tf.train.AdamOptimizer(0.0005).minimize(self.loss)
+        train_op = tf.train.AdamOptimizer(0.0002).minimize(self.loss)
         return train_op
 
     ## add rnn model
@@ -114,18 +113,16 @@ class ImdbLstm(object):
     def do_evaluation(self, sess, X, y):
         total_correct_num = 0
         num_steps = len(X) // self.batch_size
+        init_state = sess.run([self.initial_state])
         for step in range(num_steps):
             # generate the data feed dict
-            if step == 0:
-                init_state = sess.run([self.initial_state])
-            else:
-                init_state = state_step
             input_batch = X[step * self.batch_size:(step + 1) * self.batch_size, :]
             label_batch = y[step * self.batch_size:(step + 1) * self.batch_size]
+            seq_len = self.test_seq_len[step * self.batch_size:(step + 1) * self.batch_size]
 
             feed = {self.input_placeholder: input_batch, self.label_placeholder: label_batch,
-                    self.initial_state_placeholder: init_state}
-            state_step, correct_num_step = sess.run([self.final_state, self.correct_num], feed)
+                    self.initial_state_placeholder: init_state,self.sequence_length_placeholder:seq_len}
+            init_state, correct_num_step = sess.run([self.final_state, self.correct_num], feed)
             total_correct_num += correct_num_step
         print('Testing Accuracy: %f' % (total_correct_num / (num_steps * self.batch_size)))
 
@@ -145,17 +142,9 @@ class ImdbLstm(object):
                 # generate the data feed dict
                 input_batch = X_train[step * self.batch_size:(step + 1) * self.batch_size, :]
                 label_batch = y_train[step * self.batch_size:(step + 1) * self.batch_size]
-                mbsz = self.batch_size
-                max_seq_len = self.num_steps
-                self.sequence_length = np.concatenate((np.ones([10])*max_seq_len,np.ones([10]) * ( max_seq_len - step*2)), 0)
-
-                '''
-                feed = create_feed_dict(input_placeholder, input_batch,
-                                        label_placeholder, label_batch,
-                                        initial_state_placeholder, initial_state)
-                '''
+                seq_len = self.train_seq_len[step * self.batch_size:(step + 1) * self.batch_size]
                 feed = {self.input_placeholder: input_batch, self.label_placeholder: label_batch,
-                        self.initial_state_placeholder: state, self.sequence_length_placeholder:self.sequence_length}
+                        self.initial_state_placeholder: state,self.sequence_length_placeholder:seq_len}
                 _, state, correct_num_step, loss_step = sess.run(
                     [self.train_op, self.final_state, self.correct_num, self.loss], feed)
 
@@ -173,8 +162,11 @@ class ImdbLstm(object):
 
 
 class Config(object):
-    batch_size = 20
-    vocab_size = 5000
-    hidden_size = 100
-    num_steps = 400
+    def __init__(self, train_seq_len, test_seq_len):
+        self.train_seq_len = train_seq_len
+        self.test_seq_len = test_seq_len
+        self.batch_size = 20
+        self.vocab_size = 5000
+        self.hidden_size = 100
+        self.num_steps = 400
 

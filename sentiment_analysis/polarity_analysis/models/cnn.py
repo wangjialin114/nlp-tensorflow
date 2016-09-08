@@ -35,7 +35,7 @@ class CNN(object):
         self.embed_size = 50
         self.add_placeholders()
         # when debug set max_epochs = 1
-        self.max_epochs = 1
+        self.max_epochs = 12
         # Embedding Layer
         self.add_placeholders()
         # Embed layer
